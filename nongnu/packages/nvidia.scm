@@ -49,6 +49,7 @@
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages python)
   #:use-module (gnu packages video)
+  #:use-module (gnu packages xdisorg)
   #:use-module (gnu packages xorg)
   #:use-module (nongnu packages linux)
   #:use-module (ice-9 match)
@@ -59,7 +60,7 @@
   #:use-module (srfi srfi-1))
 
 ; Used for closed-source packages
-(define nvidia-version "470.86")
+(define nvidia-version "515.57")
 
 ; Used for the open-source kernel module package
 (define nversion "515.48.07")
@@ -73,7 +74,7 @@
        (uri (format #f "http://us.download.nvidia.com/XFree86/Linux-x86_64/~a/~a.run"
                     version
                     (format #f "NVIDIA-Linux-x86_64-~a" version)))
-       (sha256 (base32 "0krwcxc0j19vjnk8sv6mx1lin2rm8hcfhc2hg266846jvcws1dsg"))
+       (sha256 (base32 "08nmsgc702f7c66hmj2aqr4zi8995zz71c1b253kd2162kz6j7c4"))
        (method url-fetch)
        (file-name (string-append "nvidia-driver-" version "-checkout"))))
     (build-system linux-module-build-system)
@@ -139,7 +140,7 @@
                      (rules    (string-append #$output "/lib/udev/rules.d/90-nvidia.rules"))
                      (sh       (string-append #$bash-minimal "/bin/sh"))
                      (mknod    (string-append #$coreutils "/bin/mknod"))
-                     (cut     (string-append #$coreutils "/bin/cut"))
+                     (cut      (string-append #$coreutils "/bin/cut"))
                      (grep     (string-append #$grep "/bin/grep")))
                  (mkdir-p rulesdir)
                  (call-with-output-file rules
@@ -205,6 +206,8 @@
                                     (string-append #$cairo "/lib")
                                     (string-append #$gdk-pixbuf "/lib")
                                     (string-append #$wayland "/lib")
+                                    (string-append #$libdrm "/lib")
+                                    (string-append #$mesa "/lib")
                                     (string-append #$gcc:lib "/lib"))
                               ":")))
                  (define (patch-elf file)
@@ -273,6 +276,8 @@
        libxext
        linux-lts
        pango
+       libdrm
+       mesa
        wayland))
     (home-page "https://www.nvidia.com")
     (synopsis "Proprietary Nvidia driver")
@@ -293,7 +298,7 @@ Further xorg should be configured by adding:
        (uri (format #f "http://us.download.nvidia.com/XFree86/Linux-x86_64/~a/~a.run"
                     version
                     (format #f "NVIDIA-Linux-x86_64-~a" version)))
-       (sha256 (base32 "0krwcxc0j19vjnk8sv6mx1lin2rm8hcfhc2hg266846jvcws1dsg"))
+       (sha256 (base32 "08nmsgc702f7c66hmj2aqr4zi8995zz71c1b253kd2162kz6j7c4"))
        (method url-fetch)
        (file-name (string-append "nvidia-driver-" version "-checkout"))))
     (build-system copy-build-system)
@@ -337,6 +342,8 @@ Further xorg should be configured by adding:
                                     (string-append (assoc-ref inputs "libx11") "/lib")
                                     (string-append (assoc-ref inputs "libxext") "/lib")
                                     (string-append (assoc-ref inputs "pango") "/lib")
+                                    (string-append (assoc-ref inputs "libdrm") "/lib")
+                                    (string-append (assoc-ref inputs "mesa") "/lib")
                                     (string-append (assoc-ref inputs "wayland") "/lib"))
                               ":")))
                  (define (patch-elf file)
@@ -399,6 +406,8 @@ Further xorg should be configured by adding:
        ("gtk2" ,gtk+-2)
        ("libc" ,glibc)
        ("libx11" ,libx11)
+       ("libdrm" ,libdrm)
+       ("mesa" ,mesa)
        ("libxext" ,libxext)
        ("wayland" ,wayland)))
     (home-page "https://www.nvidia.com")
@@ -465,7 +474,7 @@ source userspace tools from the corresponding driver release.")
               (file-name (git-file-name name version))
               (sha256
                (base32
-                "1lnj5hwmfkzs664fxlhljqy323394s1i7qzlpsjyrpm07sa93bky"))))
+                "0mcpq54332ir13gr4rjwndzmf17rwvahc78jrvz0nj87rdw1bl1k"))))
     (build-system gnu-build-system)
     (arguments
      (list #:tests? #f ;no test suite
