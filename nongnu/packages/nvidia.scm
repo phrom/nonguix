@@ -79,7 +79,7 @@
        (file-name (string-append "nvidia-driver-" version "-checkout"))))
     (build-system linux-module-build-system)
     (arguments
-     (list #:linux linux-lts
+     (list #:linux linux
        #:tests? #f
        #:phases
        #~(modify-phases %standard-phases
@@ -274,7 +274,7 @@
        glibc
        libx11
        libxext
-       linux-lts
+       linux
        pango
        libdrm
        mesa
