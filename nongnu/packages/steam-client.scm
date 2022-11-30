@@ -51,13 +51,16 @@
 ;;; module is apparently disallowed inside build phases.
 
 (define-module (nongnu packages steam-client)
+  #:use-module ((guix licenses) #:prefix license:)
   #:use-module ((nonguix licenses) #:prefix license:)
   #:use-module (guix gexp)
+  #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix packages)
   #:use-module (guix records)
   #:use-module (guix download)
   #:use-module (guix build-system gnu)
+  #:use-module (guix build-system python)
   #:use-module (guix build-system trivial)
   #:use-module (guix transformations)
   #:use-module (gnu packages)
@@ -86,7 +89,10 @@
   #:use-module (gnu packages pciutils)
   #:use-module (gnu packages pulseaudio)
   #:use-module (gnu packages python)
+  #:use-module (gnu packages python-web)
+  #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages toolkits)
+  #:use-module (gnu packages video)
   #:use-module (nonguix utils))
 
 (define-record-type* <nonguix-container>
@@ -116,7 +122,7 @@
 (define steam-client
   (package
     (name "steam-client")
-    (version "1.0.0.74")
+    (version "1.0.0.75")
     (source
      (origin
        (method url-fetch)
@@ -124,7 +130,7 @@
                            version ".tar.gz"))
        (sha256
         (base32
-         "0d52n6ifsc3ix3w1qw02yg6w0vddhnfmi2wdnvdfhhgmg21kpvdh"))
+         "19rn29slsxv7b5fisr1jzn79bskzifbj5hmxqn2436ivwfjna9g5"))
        (file-name (string-append name "-" version ".tar.gz"))))
     (build-system gnu-build-system)
     (arguments
@@ -215,6 +221,9 @@
     ("libbsd" ,libbsd)
     ("libcap" ,libcap)                  ; Required for SteamVR, but needs pkexec too.
     ("libusb" ,libusb)                  ; Required for SteamVR.
+    ("libva" ,libva)                    ; Required for hardware video encoding/decoding.
+    ("libvdpau" ,libvdpau)              ; Required for hardware video encoding/decoding.
+    ("libvdpau-va-gl" ,libvdpau-va-gl)  ; Additional VDPAU support.
     ("llvm" ,llvm-11)                   ; Required for mesa.
     ("mesa" ,mesa)                      ; Required for steam startup.
     ("nss-certs" ,nss-certs)            ; Required for steam login.
@@ -419,6 +428,7 @@ in a sandboxed FHS environment."
                                  "_proxy$"
                                  "^SDL_"
                                  "^STEAM_"
+                                 "^VDPAU_DRIVER_PATH$" ; For VDPAU drivers.
                                  "^XAUTHORITY$"
                                  ;; Matching all ^XDG_ vars causes issues
                                  ;; discussed in 80decf05.
@@ -432,6 +442,7 @@ in a sandboxed FHS environment."
                 (expose `("/dev/bus/usb" ; Needed for libusb.
                           "/dev/dri"
                           "/dev/input"  ; Needed for controller input.
+                          "/dev/uinput" ; Needed for Steam Input.
                           ,@(exists-> "/dev/nvidia0") ; needed for nvidia proprietary driver
                           ,@(exists-> "/dev/nvidiactl")
                           ,@(exists-> "/dev/nvidia-modeset")
@@ -441,6 +452,7 @@ in a sandboxed FHS environment."
                           "/sys/class/hwmon" ; Needed for hw monitoring like MangoHud.
                           "/sys/class/hidraw" ; Needed for devices like the Valve Index.
                           "/sys/class/input" ; Needed for controller input.
+                          ,@(exists-> "/sys/class/power_supply") ; Needed for power monitoring like MangoHud.
                           ,@(exists-> "/sys/class/powercap") ; Needed for power monitoring like MangoHud.
                           "/sys/dev"
                           "/sys/devices"
@@ -468,6 +480,10 @@ in a sandboxed FHS environment."
            ;; for whatever reason), see:
            ;; https://gitlab.steamos.cloud/steamrt/steam-runtime-tools/-/merge_requests/406
            (setenv "PRESSURE_VESSEL_FILESYSTEMS_RO" "/gnu/store")
+           ;; By default VDPAU drivers are searched for in libvdpau's store
+           ;; path, so set this path to where the drivers will actually be
+           ;; located in the container.
+           (setenv "VDPAU_DRIVER_PATH" "/lib64/vdpau")
            (format #t "\n* Launching ~a in sandbox: ~a.\n\n"
                    #$(package-name (ngc-wrap-package container)) sandbox-home)
            (when DEBUG
@@ -725,3 +741,27 @@ all games will be installed."))))
 Valve.  This package provides a script for launching Steam in a Guix container
 which will use the directory @file{$HOME/.local/share/guix-sandbox-home} where
 all games will be installed."))))
+
+(define-public protonup-ng
+  (package
+    (name "protonup-ng")
+    (version "0.2.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+             (url "https://github.com/cloudishBenne/protonup-ng")
+             (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0yd2mhhqxzarqxk85zf42s931jzc94f1cssn1hblsqghr79laa45"))))
+    (build-system python-build-system)
+    (arguments
+     (list #:tests? #f)) ; there are no tests
+    (inputs
+     (list python-configparser python-requests))
+    (home-page "https://github.com/cloudishBenne/protonup-ng")
+    (synopsis "Manage Proton-GE Installations")
+    (description "ProtonUp-ng is a CLI program and API to automate the installation
+and update of GloriousEggroll's Proton-GE.")
+    (license license:gpl3)))
